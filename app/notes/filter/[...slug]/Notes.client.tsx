@@ -6,21 +6,20 @@ import { useDebouncedCallback } from "use-debounce";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import Link from "next/link";
 import { fetchNotes } from "@/lib/api";
-import { showErrorToast } from "@/components/ShowErrorToast/ShowErrorToast";
-import { useNoteDraftStore } from "@/lib/store/noteStore";
+import { toast, ToastContainer } from "react-toastify"; 
+import "react-toastify/dist/ReactToastify.css"; 
 
 import NoteList from "@/components/NoteList/NoteList";
 import Pagination from "@/components/Pagination/Pagination";
 import SearchBox from "@/components/SearchBox/SearchBox";
-import type { NoteSearchResponse } from "@/lib/api";
 import Loader from "@/components/Loader/Loader";
 
+
 type NoteClientProps = {
-  initialData: NoteSearchResponse;
   tag: string;
 };
 
-export default function NotesClient({ initialData, tag }: NoteClientProps) {
+export default function NotesClient({ tag }: NoteClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [inputValue, setInputValue] = useState("");
@@ -34,7 +33,8 @@ export default function NotesClient({ initialData, tag }: NoteClientProps) {
     setInputValue(value);
     updateSearchQuery(value);
   };
-  const queryTag = tag === "All" ? undefined : tag;
+
+  const queryTag = tag?.toLowerCase() === "all" ? undefined : tag;
 
   const { data, isLoading, isSuccess, isError } = useQuery({
     queryKey: ["notes", searchQuery, tag, currentPage],
@@ -45,35 +45,30 @@ export default function NotesClient({ initialData, tag }: NoteClientProps) {
         page: currentPage,
       }),
     placeholderData: keepPreviousData,
-    initialData: initialData,
+    refetchOnMount: false, // Забороняємо перепитувати дані, які вже прийшли з сервера
   });
 
   const totalPages = data?.totalPages || 0;
-
   const noNotesToastShown = useRef(false);
 
-  const successContent = isSuccess && data?.notes?.length > 0 && (
-    <NoteList notes={data.notes} />
-  );
-
-  const loadingContent = isLoading && <Loader />;
-
+  // Обробка помилок завантаження
   useEffect(() => {
     if (isError) {
-      showErrorToast("Something went wrong while fetching notes.");
+      toast.error("Something went wrong while fetching notes.");
     }
   }, [isError]);
 
+  // Обробка порожнього списку
   useEffect(() => {
-    if (!isLoading && data && data.notes.length === 0) {
+    if (!isLoading && data && data.notes.length === 0 && searchQuery !== "") {
       if (!noNotesToastShown.current) {
-        showErrorToast("No notes found for your request.");
+        toast.info("No notes found for your request.");
         noNotesToastShown.current = true;
       }
     } else {
       noNotesToastShown.current = false;
     }
-  }, [data, isLoading]);
+  }, [data, isLoading, searchQuery]);
 
   return (
     <div className={css.app}>
@@ -86,12 +81,22 @@ export default function NotesClient({ initialData, tag }: NoteClientProps) {
             onPageChange={setCurrentPage}
           />
         )}
+        {/* Кнопка створення нотатки через Link — це гуд! */}
         <Link className={css.button} href="/notes/action/create">
-          Create note
+          Create note +
         </Link>
       </header>
-      {loadingContent}
-      {successContent}
+
+      {isLoading && <Loader />}
+      
+      {isSuccess && data?.notes?.length > 0 ? (
+        <NoteList notes={data.notes} />
+      ) : (
+        !isLoading && <p className={css.emptyMessage}>No notes here yet.</p>
+      )}
+
+      {}
+      <ToastContainer position="bottom-right" autoClose={3000} />
     </div>
   );
 }
