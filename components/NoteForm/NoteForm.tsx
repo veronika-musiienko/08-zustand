@@ -1,29 +1,33 @@
 "use client";
+
 import css from "../NoteForm/NoteForm.module.css";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { createNote } from "../../lib/api";
-import { showErrorToast } from "../ShowErrorToast/ShowErrorToast";
-import type { NewNote } from "../../types/note";
+import { toast } from "react-toastify"; 
 import { useNoteDraftStore } from "@/lib/store/noteStore";
+import type { NewNote } from "../../types/note";
 
 export default function NoteForm() {
   const queryClient = useQueryClient();
-
   const router = useRouter();
-  const close = () => router.back();
-
+  
+ 
   const { draft, setDraft, clearDraft } = useNoteDraftStore();
+
+  const close = () => router.back();
 
   const { mutate } = useMutation({
     mutationFn: (newNote: NewNote) => createNote(newNote),
     onSuccess: () => {
-      clearDraft();
+      toast.success("Note created successfully! 🎉");
+      clearDraft(); 
       queryClient.invalidateQueries({ queryKey: ["notes"] });
       close();
     },
     onError: () => {
-      showErrorToast("Error creating note");
+     
+      toast.error("Failed to create note. Please try again.");
     },
   });
 
@@ -32,6 +36,7 @@ export default function NoteForm() {
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
+    
     setDraft({
       ...draft,
       [event.target.name]: event.target.value,
@@ -40,15 +45,9 @@ export default function NoteForm() {
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-
-    const newNote: NewNote = {
-      title: String(formData.get("title") || ""),
-      content: String(formData.get("content") || ""),
-      tag: String(formData.get("tag") || "Todo"),
-    };
-    mutate(newNote);
-    e.currentTarget.reset();
+    
+    
+    mutate(draft);
   };
 
   return (
@@ -60,8 +59,10 @@ export default function NoteForm() {
           name="title"
           type="text"
           className={css.input}
-          value={draft.title}
+          placeholder="Enter title..."
+          value={draft.title} 
           onChange={handleChange}
+          required
         />
       </div>
 
@@ -72,8 +73,10 @@ export default function NoteForm() {
           name="content"
           rows={8}
           className={css.textarea}
-          value={draft.content}
+          placeholder="Write your note here..."
+          value={draft.content} 
           onChange={handleChange}
+          required
         />
       </div>
 
