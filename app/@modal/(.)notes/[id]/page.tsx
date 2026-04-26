@@ -1,14 +1,14 @@
 import { fetchNoteById } from "@/lib/api";
-import NotePreviewModal from "./NotePreview.client";
-import { QueryClient, dehydrate } from "@tanstack/react-query";
+import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import NotePreviewModal from "./NotePreview.client"; // Перевір, щоб ім'я файлу було саме таким
 
-type Props = {
-  params: Promise<{ id: string }>;
-};
+type Props = { params: Promise<{ id: string }> };
 
 const NotePreview = async ({ params }: Props) => {
-  const queryClient = new QueryClient();
   const { id } = await params;
+  const queryClient = new QueryClient();
+
+  // 1. Префетчимо дані
   await queryClient.prefetchQuery({
     queryKey: ["note", id],
     queryFn: () => fetchNoteById(id),
@@ -16,7 +16,13 @@ const NotePreview = async ({ params }: Props) => {
 
   const dehydratedState = dehydrate(queryClient);
 
-  return <NotePreviewModal dehydratedState={dehydratedState} />;
+  return (
+    // 2. ОБОВ'ЯЗКОВО обгортаємо в HydrationBoundary
+    <HydrationBoundary state={dehydratedState}>
+      {/* 3. Передаємо тільки id! Ніяких dehydratedState в пропси */}
+      <NotePreviewModal id={id} />
+    </HydrationBoundary>
+  );
 };
 
 export default NotePreview;
